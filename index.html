@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,7 +11,7 @@
 <style>
 :root{
   --navy:#0e1d47; --navy-ink:#ffffff;
-  --bg:#f3f4f7; --card:#fff; --ink:#0e1d47; --muted:#5f6577; --line:#dfe2ea; --soft:#eceef3;
+  --bg:#ffffff; --card:#fff; --ink:#0e1d47; --muted:#5f6577; --line:#dfe2ea; --soft:#eceef3;
   --accent:#0e1d47; --gold:#b08d57; --venta:#0e1d47; --alq:#5b82c8; --temp:#b08d57; --otra:#9aa0ad;
   --ok:#2f8a63; --warn:#b07a1f; --bad:#b23b3b;
 }
@@ -383,7 +383,7 @@ function renderDevs() {
     || '<tr><td colspan="8">No hay emprendimientos cargados en Tokko.</td></tr>';
 }
 
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+
 load();
 </script>
 </body>
