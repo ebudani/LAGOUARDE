@@ -121,6 +121,7 @@ a{color:var(--accent)}
     <button data-tab="listado">Listado</button>
     <button data-tab="historial">Historial</button>
     <button data-tab="consultas">Consultas</button>
+    <button data-tab="redes">Redes (Meta)</button>
     <button data-tab="emprendimientos">Emprendimientos</button>
   </nav>
 
@@ -191,6 +192,27 @@ a{color:var(--accent)}
     <div class="note">Solo se publican cantidades: fecha, agente, estado y etiquetas. Los nombres, teléfonos y emails de los contactos no se guardan.</div>
   </div>
 
+  <div id="tab-redes" class="hidden">
+    <div class="note" id="r-note"></div>
+    <section class="filters open" id="rfilters">
+      <label>Período<select id="rf-per"><option value="12">Últimos 12 meses</option><option value="6">Últimos 6 meses</option><option value="3">Últimos 3 meses</option><option value="1">Este mes</option></select></label>
+      <label>Red<select id="rf-red"><option value="">Facebook + Instagram</option><option value="facebook">Solo Facebook</option><option value="instagram">Solo Instagram</option></select></label>
+    </section>
+    <div class="kpis" id="rkpis"></div>
+    <div class="grid">
+      <div class="card"><h3>Conversaciones por mes</h3><p class="sub">Personas que escribieron por mensaje privado</p><div class="chart"><canvas id="rc-mes"></canvas></div></div>
+      <div class="card"><h3>¿Qué preguntan?</h3><p class="sub">Temas detectados por palabras clave en los mensajes</p><div class="chart"><canvas id="rc-temas"></canvas></div></div>
+      <div class="card"><h3>Zonas que mencionan</h3><p class="sub">Barrios y localidades nombrados en los mensajes</p><div class="chart"><canvas id="rc-zonas"></canvas></div></div>
+      <div class="card"><h3>Tipo de propiedad</h3><p class="sub">Lo que buscan según el mensaje</p><div class="chart"><canvas id="rc-tipos"></canvas></div></div>
+      <div class="card"><h3>¿A qué hora escriben?</h3><p class="sub">Primer mensaje de cada conversación, hora de Argentina</p><div class="chart"><canvas id="rc-hora"></canvas></div></div>
+      <div class="card"><h3>¿Qué día escriben?</h3><p class="sub">Primer mensaje de cada conversación</p><div class="chart"><canvas id="rc-dia"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px"><h3>Anuncios: costo por consulta</h3><p class="sub">Campañas de Facebook e Instagram del período elegido</p>
+      <div class="scroll"><table id="t-ads"><thead></thead><tbody></tbody></table></div></div>
+    <div class="card"><h3>Formularios de anuncios</h3><p class="sub">Contactos que dejaron sus datos en un formulario de Meta (total histórico)</p>
+      <div class="scroll"><table id="t-forms"><thead></thead><tbody></tbody></table></div></div>
+  </div>
+
   <div id="tab-emprendimientos" class="hidden">
     <div class="card">
       <div class="scroll"><table id="t-devs"><thead></thead><tbody></tbody></table></div>
@@ -217,8 +239,8 @@ const mesLabel = m => { const [y, mm] = m.split('-'); return ['ene','feb','mar',
 
 async function load() {
   const get = async (f, d) => { try { const r = await fetch('data/' + f, {cache: 'no-store'}); return r.ok ? r.json() : d; } catch { return d; } };
-  [S.props, S.devs, S.hist, S.meta, S.cons] = await Promise.all([
-    get('propiedades.json', null), get('emprendimientos.json', []), get('historial.json', {}), get('meta.json', {}), get('consultas.json', null)]);
+  [S.props, S.devs, S.hist, S.meta, S.cons, S.redes] = await Promise.all([
+    get('propiedades.json', null), get('emprendimientos.json', []), get('historial.json', {}), get('meta.json', {}), get('consultas.json', null), get('redes.json', null)]);
   if (!S.props) {
     $('#app').classList.add('hidden'); $('#err').classList.remove('hidden');
     $('#err').innerHTML = '<h2>Todavía no hay datos</h2><p>Corré <code>python scripts/fetch_tokko.py</code> (o con <code>--demo</code> para datos de prueba) y recargá la página.</p>';
@@ -228,6 +250,7 @@ async function load() {
   const when = S.meta.actualizado ? new Date(S.meta.actualizado).toLocaleString('es-AR', {dateStyle: 'medium', timeStyle: 'short'}) : '—';
   $('#sync').innerHTML = 'Sincronizado: ' + when + (S.meta.modo === 'demo' ? '<span class="demo">DATOS DE PRUEBA</span>' : '');
   buildFilters(); prepConsultas(); render();
+  document.querySelectorAll('#rfilters select').forEach(el => el.addEventListener('input', render));
 }
 
 function opts(sel, values, all = 'Todos') {
@@ -276,8 +299,8 @@ let tab = 'resumen';
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
   tab = b.dataset.tab;
   document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
-  ['resumen', 'listado', 'historial', 'consultas', 'emprendimientos'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== tab));
-  const sinFiltros = tab === 'emprendimientos' || tab === 'consultas';
+  ['resumen', 'listado', 'historial', 'consultas', 'redes', 'emprendimientos'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== tab));
+  const sinFiltros = ['emprendimientos', 'consultas', 'redes'].includes(tab);
   $('#filters').classList.toggle('hidden', sinFiltros);
   $('#ftoggle').classList.toggle('hidden', sinFiltros);
   render();
@@ -293,6 +316,7 @@ function render() {
   if (tab === 'historial') renderHistorial(f);
   if (tab === 'emprendimientos') renderDevs();
   if (tab === 'consultas') renderConsultas();
+  if (tab === 'redes') renderRedes();
 }
 
 /* ---------- resumen ---------- */
@@ -502,6 +526,45 @@ function renderConsultas() {
   barChart('cc-zona', zc.map(x => x[0]), [{label: 'Consultas', data: zc.map(x => x[1]), backgroundColor: '#5b82c8'}], {horizontal: true});
   const tc = countBy(list.flatMap(r => [...r.tipo]), t => t).slice(0, 12);
   barChart('cc-tipo', tc.map(x => x[0]), [{label: 'Consultas', data: tc.map(x => x[1]), backgroundColor: '#b08d57'}], {horizontal: true});
+}
+
+/* ---------- redes (Meta) ---------- */
+function renderRedes() {
+  const R = S.redes;
+  if (!R) { $('#r-note').innerHTML = 'Todavía no está conectado con Meta. Cuando se carguen los permisos, acá van a aparecer los mensajes de Facebook e Instagram y los anuncios.'; return; }
+  $('#r-note').innerHTML = (R.modo === 'demo' ? '<b>Datos de prueba.</b> Cuando se conecte la cuenta de Meta se reemplazan por los reales. ' : '') +
+    'Solo se publican cantidades y temas: el texto de los mensajes y los datos de las personas no se guardan.' +
+    (R.errores?.length ? `<br><b>Avisos de Meta:</b> ${R.errores.map(esc).join(' · ')}` : '');
+  const M = R.mensajes || {}, per = +$('#rf-per').value, red = $('#rf-red').value;
+  const meses = lastMonths(per), set = new Set(meses);
+  const val = (d) => red ? (d?.[red] || 0) : Object.values(d || {}).reduce((a, b) => a + b, 0);
+  const conv = meses.reduce((s, m) => s + val(M.por_mes?.[m]), 0);
+  const msgs = meses.reduce((s, m) => s + val(M.mensajes_mes?.[m]), 0);
+  const prevM = lastMonths(per * 2).slice(0, per), ant = prevM.every(m => M.por_mes?.[m]) ? prevM.reduce((s, m) => s + val(M.por_mes[m]), 0) : 0;
+  const rmin = median(M.respuesta_min || []);
+  const dur = v => v == null ? '—' : v < 60 ? `${Math.round(v)} min` : v < 1440 ? `${(v / 60).toFixed(1).replace('.', ',')} h` : `${(v / 1440).toFixed(1).replace('.', ',')} días`;
+  const ads = (R.anuncios || []).filter(a => set.has(a.mes));
+  const gasto = ads.reduce((s, a) => s + a.gasto, 0), cont = ads.reduce((s, a) => s + a.contactos, 0), cur = ads[0]?.moneda || 'ARS';
+  $('#rkpis').innerHTML =
+    kpi('Conversaciones', nf.format(conv), ant ? `${conv >= ant ? '▲' : '▼'} ${Math.abs(Math.round((conv - ant) * 100 / ant))}% vs. período anterior` : '') +
+    kpi('Mensajes recibidos', nf.format(msgs), conv ? `${(msgs / conv).toFixed(1).replace('.', ',')} por conversación` : '') +
+    kpi('Tiempo de respuesta', dur(rmin), 'mediana hasta la primera respuesta') +
+    kpi('Sin responder', pct(M.sin_respuesta || 0, (M.respondidas || 0) + (M.sin_respuesta || 0)), `${nf.format(M.sin_respuesta || 0)} conversaciones (todo el historial leído)`) +
+    (R.anuncios ? kpi('Gasto en anuncios', money(gasto, cur), `${nf.format(cont)} consultas generadas`) +
+      kpi('Costo por consulta', cont ? money(gasto / cont, cur) : '—', 'gasto ÷ contactos de anuncios') : '');
+  barChart('rc-mes', meses.map(mesLabel), [['facebook', 'Facebook', '#5b82c8'], ['instagram', 'Instagram', '#b08d57']]
+    .filter(([k]) => !red || red === k).map(([k, l, c]) => ({label: l, backgroundColor: c, data: meses.map(m => M.por_mes?.[m]?.[k] || 0)})), {stacked: true});
+  const bars = (id, obj, color, n = 12) => { const e = Object.entries(obj || {}).slice(0, n); barChart(id, e.map(x => x[0]), [{label: 'Conversaciones', data: e.map(x => x[1]), backgroundColor: color}], {horizontal: true}); };
+  bars('rc-temas', M.temas, css('--navy')); bars('rc-zonas', M.zonas, '#5b82c8'); bars('rc-tipos', M.tipos, '#b08d57');
+  barChart('rc-hora', [...Array(24).keys()].map(h => h + ' h'), [{label: 'Conversaciones', data: M.hora || [], backgroundColor: css('--navy')}]);
+  barChart('rc-dia', ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'], [{label: 'Conversaciones', data: M.dia || [], backgroundColor: '#5b82c8'}]);
+  const camp = Object.values(ads.reduce((o, a) => { const c = o[a.campana] ||= {campana: a.campana, gasto: 0, alcance: 0, clics: 0, contactos: 0}; c.gasto += a.gasto; c.alcance += a.alcance; c.clics += a.clics; c.contactos += a.contactos; return o; }, {})).sort((a, b) => b.gasto - a.gasto);
+  $('#t-ads thead').innerHTML = '<tr><th>Campaña</th><th class="n">Gasto</th><th class="n">Alcance</th><th class="n">Clics</th><th class="n">Consultas</th><th class="n">Costo por consulta</th></tr>';
+  $('#t-ads tbody').innerHTML = camp.map(c => `<tr><td><b>${esc(c.campana)}</b></td><td class="n">${money(c.gasto, cur)}</td><td class="n">${nf.format(c.alcance)}</td><td class="n">${nf.format(c.clics)}</td><td class="n">${nf.format(c.contactos)}</td><td class="n">${c.contactos ? money(c.gasto / c.contactos, cur) : '—'}</td></tr>`).join('')
+    || `<tr><td colspan="6">${R.anuncios ? 'No hubo anuncios en este período.' : 'Falta conectar la cuenta publicitaria (META_AD_ACCOUNT_ID).'}</td></tr>`;
+  $('#t-forms thead').innerHTML = '<tr><th>Formulario</th><th>Estado</th><th>Creado</th><th class="n">Contactos</th></tr>';
+  $('#t-forms tbody').innerHTML = (R.formularios || []).map(f => `<tr><td><b>${esc(f.nombre)}</b></td><td>${f.estado === 'ACTIVE' ? 'Activo' : 'Archivado'}</td><td>${esc(f.creado)}</td><td class="n">${nf.format(f.contactos)}</td></tr>`).join('')
+    || '<tr><td colspan="4">No hay formularios de anuncios.</td></tr>';
 }
 
 /* ---------- emprendimientos ---------- */

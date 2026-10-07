@@ -32,3 +32,10 @@ No se guardan datos de propietarios ni de contactos: solo datos de la propiedad,
 - El workflow `.github/workflows/sync-tokko.yml` corre todos los días a las 06:00 (hora de Argentina). Trae los datos con la key guardada como secret `TOKKO_API_KEY` y guarda `data/*.json` en un commit.
 - Para actualizar a mano: pestaña **Actions → Sync Tokko → Run workflow**.
 - El archivo `.env` con la key **no** se sube (está en `.gitignore`).
+
+## Redes (Meta)
+
+`scripts/fetch_meta.py` lee los mensajes de Facebook e Instagram, los formularios y los anuncios de la página.
+Necesita los secrets `META_TOKEN` (token de la página), `META_PAGE_ID` y, opcional, `META_AD_ACCOUNT_ID`.
+Los mensajes se clasifican por palabras clave (temas, zonas, tipo de propiedad) y en `data/redes.json`
+quedan solo cantidades: nada de textos, nombres ni IDs de personas. Sin token, el paso se saltea.

@@ -31,6 +31,14 @@ jobs:
           TOKKO_API_KEY: ${{ secrets.TOKKO_API_KEY }}
         run: python scripts/fetch_tokko.py
 
+      - name: Traer datos de Meta (Facebook / Instagram)
+        continue-on-error: true
+        env:
+          META_TOKEN: ${{ secrets.META_TOKEN }}
+          META_PAGE_ID: ${{ secrets.META_PAGE_ID }}
+          META_AD_ACCOUNT_ID: ${{ secrets.META_AD_ACCOUNT_ID }}
+        run: python scripts/fetch_meta.py
+
       - name: Guardar datos si cambiaron
         run: |
           git config user.name "github-actions[bot]"
