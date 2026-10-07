@@ -309,7 +309,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--demo", action="store_true", help="generar datos ficticios")
     args = ap.parse_args()
-    ahora = datetime.datetime.now().replace(microsecond=0)
+    ahora = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-3))).replace(microsecond=0)  # hora de Argentina, también en GitHub
     fecha = ahora.date().isoformat()
 
     if args.demo:
