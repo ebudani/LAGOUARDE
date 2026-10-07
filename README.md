@@ -5,6 +5,7 @@ Tablero HTML que lee los datos de Tokko Broker a través de su API oficial y los
 - **Resumen:** totales en venta y en alquiler, casas, precio típico, US$/m², gráficos por tipo, zona, estado y agente, y captaciones por mes.
 - **Listado:** todas las propiedades, con orden por columna y link a la publicación.
 - **Historial:** cierres (vendidas o alquiladas), reservas, altas, bajas y cambios de precio.
+- **Consultas:** contactos por mes, origen (portal), agente, estado, zona y tipo buscado. Solo cantidades: no se guardan nombres, teléfonos ni emails.
 - **Emprendimientos:** unidades disponibles y reservadas.
 
 ## Conectar con Tokko (una sola vez)

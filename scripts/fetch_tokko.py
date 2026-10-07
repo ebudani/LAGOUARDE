@@ -99,15 +99,15 @@ def get(resource, key, params):
     sys.exit(f"No se pudo leer {resource} (offset {params.get('offset')}): {err}")
 
 
-def fetch_all(resource, key, extra=None):
+def fetch_all(resource, key, extra=None, page_size=PAGE_SIZE):
     out, offset, total = [], 0, None
     while True:
-        page = get(resource, key, {"limit": PAGE_SIZE, "offset": offset, **(extra or {})})
+        page = get(resource, key, {"limit": page_size, "offset": offset, **(extra or {})})
         objs = page.get("objects", [])
         total = (page.get("meta") or {}).get("total_count", total)
         out.extend(objs)
         print(f"  {resource}: {len(out)}/{total or '?'}", end="\r")
-        offset += PAGE_SIZE
+        offset += page_size
         if not objs or not (page.get("meta") or {}).get("next") or (total and offset >= total):
             break
         time.sleep(0.3)
@@ -165,6 +165,34 @@ def norm_property(p):
         "url": p.get("public_url") or None,
         "tags": [t.get("name") for t in (p.get("tags") or []) if isinstance(t, dict) and t.get("name")],
     }
+
+
+def consultas_agregadas(contacts):
+    """Consultas SIN datos personales: solo fecha de alta, agente, estado, si es propietario y etiquetas.
+    Nombres, teléfonos, emails y documentos de los contactos nunca se guardan."""
+    idx = {"agentes": [], "estados": [], "tags": []}
+
+    def i(lista, v):
+        if v not in idx[lista]:
+            idx[lista].append(v)
+        return idx[lista].index(v)
+
+    rows = []
+    for c in contacts:
+        fecha = (c.get("created_at") or "")[:10]
+        if not fecha:
+            continue
+        st = c.get("opportunity_status") if isinstance(c.get("opportunity_status"), dict) else {}
+        rows.append([
+            fecha,
+            i("agentes", name_of(c.get("agent")) or "Sin asignar"),
+            i("estados", st.get("name") or c.get("lead_status") or "Sin estado"),
+            1 if st.get("is_closed_status") else 0,
+            1 if c.get("is_owner") else 0,
+            [i("tags", t["name"]) for t in (c.get("tags") or []) if isinstance(t, dict) and t.get("name")],
+        ])
+    rows.sort(key=lambda r: r[0])
+    return {**idx, "rows": rows}
 
 
 def norm_development(d):
@@ -303,6 +331,23 @@ def demo_data():
     return props, devs, {"eventos": sorted(eventos, key=lambda e: e["fecha"]), "fotos": fotos}
 
 
+def demo_consultas():
+    rnd = random.Random(11)
+    hoy = datetime.date.today()
+    origenes = ["Web", "Mercadolibre", "Zonaprop", "Contacto por Whatsapp", "Argenprop", "Proppit"]
+    interes = ["Venta", "Alquiler", "Casa", "Terreno", "Palermo", "Belgrano", "La Carlina"]
+    fake = []
+    for _ in range(1400):
+        st = rnd.choices([("Pendiente contactar", False), ("Evolucionando", False), ("Tomar Accion", False),
+                          ("Para reasignacion", False), ("Cerrado", True)], [20, 25, 10, 15, 30])[0]
+        fake.append({"created_at": (hoy - datetime.timedelta(days=int(rnd.triangular(0, 540, 0)))).isoformat(),
+                     "agent": {"name": rnd.choice(["Agente A", "Agente B", "Agente C", "Agente D"])},
+                     "opportunity_status": {"name": st[0], "is_closed_status": st[1]},
+                     "is_owner": rnd.random() < 0.07,
+                     "tags": [{"name": t} for t in {rnd.choice(origenes), rnd.choice(interes), rnd.choice(interes)}]})
+    return consultas_agregadas(fake)
+
+
 # ---------------------------------------------------------------- main
 
 def main():
@@ -314,6 +359,7 @@ def main():
 
     if args.demo:
         props, devs, hist = demo_data()
+        consultas = demo_consultas()
         modo = "demo"
     else:
         key = load_key()
@@ -328,6 +374,8 @@ def main():
         except SystemExit as e:
             print(f"  (sin emprendimientos: {e})")
             devs = []
+        print("Leyendo consultas (contactos)…")
+        consultas = consultas_agregadas(fetch_all("contact", key, {"order_by": "created_at"}, page_size=50))
         meta_prev = read_json("meta.json", {})
         prev = read_json("propiedades.json", []) if meta_prev.get("modo") == "real" else []
         hist = read_json("historial.json", {}) if meta_prev.get("modo") == "real" else {}
@@ -339,11 +387,12 @@ def main():
     write_json("propiedades.json", props)
     write_json("emprendimientos.json", devs)
     write_json("historial.json", hist)
+    write_json("consultas.json", consultas)
     write_json("meta.json", {"actualizado": ahora.isoformat(), "modo": modo,
-                             "propiedades": len(props), "emprendimientos": len(devs),
+                             "propiedades": len(props), "emprendimientos": len(devs), "consultas": len(consultas["rows"]),
                              "historial_desde": hist.get("desde")})
     print(f"Listo ({modo}): {len(props)} propiedades, {len(devs)} emprendimientos, "
-          f"{len(hist.get('eventos', []))} eventos en el historial.")
+          f"{len(consultas['rows'])} consultas, {len(hist.get('eventos', []))} eventos en el historial.")
 
 
 if __name__ == "__main__":

@@ -120,6 +120,7 @@ a{color:var(--accent)}
     <button data-tab="resumen" class="on">Resumen</button>
     <button data-tab="listado">Listado</button>
     <button data-tab="historial">Historial</button>
+    <button data-tab="consultas">Consultas</button>
     <button data-tab="emprendimientos">Emprendimientos</button>
   </nav>
 
@@ -170,6 +171,26 @@ a{color:var(--accent)}
     </div>
   </div>
 
+  <div id="tab-consultas" class="hidden">
+    <section class="filters open" id="cfilters">
+      <label>Período<select id="cf-per"><option value="12">Últimos 12 meses</option><option value="24">Últimos 24 meses</option><option value="6">Últimos 6 meses</option><option value="0">Todo el historial</option></select></label>
+      <label>Agente<select id="cf-ag"></select></label>
+      <label>Origen<select id="cf-or"></select></label>
+      <label>Interés<select id="cf-op"></select></label>
+      <label>Zona / barrio consultado<input id="cf-zona" list="l-czona" placeholder="Escribí: Carlina, Los Cardales…"><datalist id="l-czona"></datalist></label>
+    </section>
+    <div class="kpis" id="ckpis"></div>
+    <div class="grid">
+      <div class="card"><h3>Consultas por mes</h3><p class="sub">Separadas por origen (portal o canal)</p><div class="chart"><canvas id="cc-mes"></canvas></div></div>
+      <div class="card"><h3>¿De dónde llegan?</h3><p class="sub">Consultas por portal o canal</p><div class="chart"><canvas id="cc-origen"></canvas></div></div>
+      <div class="card"><h3>Consultas por agente</h3><p class="sub">Abiertas y cerradas según el estado actual en Tokko</p><div class="chart"><canvas id="cc-agente"></canvas></div></div>
+      <div class="card"><h3>Estado de las consultas</h3><p class="sub">En dorado, las que siguen abiertas</p><div class="chart"><canvas id="cc-estado"></canvas></div></div>
+      <div class="card"><h3>Zonas más consultadas</h3><p class="sub">Según las etiquetas de cada consulta</p><div class="chart tall"><canvas id="cc-zona"></canvas></div></div>
+      <div class="card"><h3>Qué tipo de propiedad buscan</h3><p class="sub">Según las etiquetas de cada consulta</p><div class="chart tall"><canvas id="cc-tipo"></canvas></div></div>
+    </div>
+    <div class="note">Solo se publican cantidades: fecha, agente, estado y etiquetas. Los nombres, teléfonos y emails de los contactos no se guardan.</div>
+  </div>
+
   <div id="tab-emprendimientos" class="hidden">
     <div class="card">
       <div class="scroll"><table id="t-devs"><thead></thead><tbody></tbody></table></div>
@@ -196,8 +217,8 @@ const mesLabel = m => { const [y, mm] = m.split('-'); return ['ene','feb','mar',
 
 async function load() {
   const get = async (f, d) => { try { const r = await fetch('data/' + f, {cache: 'no-store'}); return r.ok ? r.json() : d; } catch { return d; } };
-  [S.props, S.devs, S.hist, S.meta] = await Promise.all([
-    get('propiedades.json', null), get('emprendimientos.json', []), get('historial.json', {}), get('meta.json', {})]);
+  [S.props, S.devs, S.hist, S.meta, S.cons] = await Promise.all([
+    get('propiedades.json', null), get('emprendimientos.json', []), get('historial.json', {}), get('meta.json', {}), get('consultas.json', null)]);
   if (!S.props) {
     $('#app').classList.add('hidden'); $('#err').classList.remove('hidden');
     $('#err').innerHTML = '<h2>Todavía no hay datos</h2><p>Corré <code>python scripts/fetch_tokko.py</code> (o con <code>--demo</code> para datos de prueba) y recargá la página.</p>';
@@ -206,7 +227,7 @@ async function load() {
   S.hist.eventos ||= []; S.hist.fotos ||= [];
   const when = S.meta.actualizado ? new Date(S.meta.actualizado).toLocaleString('es-AR', {dateStyle: 'medium', timeStyle: 'short'}) : '—';
   $('#sync').innerHTML = 'Sincronizado: ' + when + (S.meta.modo === 'demo' ? '<span class="demo">DATOS DE PRUEBA</span>' : '');
-  buildFilters(); render();
+  buildFilters(); prepConsultas(); render();
 }
 
 function opts(sel, values, all = 'Todos') {
@@ -255,9 +276,10 @@ let tab = 'resumen';
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
   tab = b.dataset.tab;
   document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
-  ['resumen', 'listado', 'historial', 'emprendimientos'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== tab));
-  $('#filters').classList.toggle('hidden', tab === 'emprendimientos');
-  $('#ftoggle').classList.toggle('hidden', tab === 'emprendimientos');
+  ['resumen', 'listado', 'historial', 'consultas', 'emprendimientos'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== tab));
+  const sinFiltros = tab === 'emprendimientos' || tab === 'consultas';
+  $('#filters').classList.toggle('hidden', sinFiltros);
+  $('#ftoggle').classList.toggle('hidden', sinFiltros);
   render();
 });
 
@@ -270,6 +292,7 @@ function render() {
   if (tab === 'listado') renderListado(list);
   if (tab === 'historial') renderHistorial(f);
   if (tab === 'emprendimientos') renderDevs();
+  if (tab === 'consultas') renderConsultas();
 }
 
 /* ---------- resumen ---------- */
@@ -400,6 +423,85 @@ function renderHistorial(f) {
   $('#t-hist thead').innerHTML = '<tr><th>Fecha</th><th>Movimiento</th><th>Propiedad</th><th>Tipo</th><th>Zona</th><th>Operación</th><th class="n">Precio</th><th>Detalle</th><th>Agente</th></tr>';
   $('#t-hist tbody').innerHTML = [...ev].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 500).map(e => `<tr><td>${e.fecha}</td><td><b>${esc(e.evento)}</b></td><td>${esc(e.titulo)}<br><span class="badge">${esc(e.ref)}</span></td><td>${esc(e.tipo_prop)}</td><td>${esc(e.zona)}</td><td>${esc(e.op)}</td><td class="n">${money(e.precio, e.moneda)}</td><td>${e.evento === 'Cambio de precio' ? money(e.antes, e.moneda) + ' → ' + money(e.despues, e.moneda) : esc([e.antes, e.despues].filter(Boolean).join(' → '))}</td><td>${esc(e.agente)}</td></tr>`).join('')
     || '<tr><td colspan="9">Todavía no hay movimientos registrados. Aparecen a partir de la segunda sincronización.</td></tr>';
+}
+
+/* ---------- consultas ---------- */
+const ORIGENES = [
+  ['Zonaprop', /^zonaprop$/i], ['Mercadolibre', /^mercadolibre$/i], ['Sitio web Lagouarde', /lagouarde/i],
+  ['WhatsApp', /whatsapp/i], ['Teléfono', /^(telefono|vio telefono|quiere que lo llamen)$/i], ['icasas', /^icasas$/i],
+  ['Argenprop', /argenprop/i], ['Proppit', /^proppit$/i], ['Properati', /^properati$/i], ['OLX', /^olx$/i],
+  ['Goplaceit', /^goplace/i], ['Referido', /^referido$/i], ['Red Tokko', /red tokko/i],
+  ['Otros portales', /^(enbuenosaires|liderprop|doomos|planneon)$/i]];
+const OPER = {'venta': 'Venta', 'alquiler': 'Alquiler', 'alquiler temporario': 'Alquiler temporario', 'tasacion': 'Tasación', 'emprendimiento': 'Emprendimiento'};
+const TIPOS_C = [['Casa', /^casa/i], ['Lote / terreno', /^terreno/i], ['Campo', /^campo/i], ['Chacra', /^chacra$/i],
+  ['Quinta', /^quinta/i], ['Departamento', /^departamento/i], ['Local', /^local/i], ['PH', /^ph$/i],
+  ['Galpón / depósito', /(galp|dep[oó]sito|nave)/i], ['Rancho', /^rancho$/i], ['Edificio', /^edificio$/i]];
+const GENERICOS = /^(web|consulta|contacto|quiere visitar|argentina)$/i;
+const ABIERTOS = ['Pendiente contactar', 'Tomar Accion', 'Esperando respuesta', 'Evolucionando'];
+const titleCase = s => s.toLowerCase().replace(/(^|[\s(\-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+
+function prepConsultas() {
+  const C = S.cons; if (!C?.rows) return;
+  const info = C.tags.map(t => {
+    const o = ORIGENES.find(([, re]) => re.test(t)); if (o) return {k: 'origen', v: o[0]};
+    if (OPER[norm(t)]) return {k: 'op', v: OPER[norm(t)]};
+    const ti = TIPOS_C.find(([, re]) => re.test(t)); if (ti) return {k: 'tipo', v: ti[0]};
+    if (GENERICOS.test(t)) return {k: 'web', v: t};
+    const z = t.includes('|') ? t.split('|').pop().trim() : t;
+    return {k: 'zona', v: /^countries/i.test(z) ? null : titleCase(z)};
+  });
+  S.consRows = C.rows.map(([f, a, e, cerr, own, tags]) => {
+    const r = {f, m: f.slice(0, 7), ag: C.agentes[a], st: C.estados[e], cerr, own, origen: null, op: new Set(), tipo: new Set(), zona: new Set(), web: false};
+    tags.forEach(i => { const x = info[i]; if (x.k === 'origen') r.origen ||= x.v; else if (x.k === 'web') r.web ||= /^web$/i.test(x.v); else if (x.v) r[x.k].add(x.v); });
+    r.origen ||= r.web ? 'Web (sin portal)' : 'Sin origen';
+    return r;
+  });
+  const fill = (sel, vals, all) => { $(sel).innerHTML = `<option value="">${all}</option>` + vals.map(v => `<option>${esc(v)}</option>`).join(''); };
+  const by = f => countBy(S.consRows, f).map(x => x[0]);
+  fill('#cf-ag', by(r => r.ag), 'Todos');
+  fill('#cf-or', by(r => r.origen), 'Todos');
+  fill('#cf-op', [...new Set(S.consRows.flatMap(r => [...r.op]))], 'Todas');
+  $('#l-czona').innerHTML = countBy(S.consRows.flatMap(r => [...r.zona]), z => z).slice(0, 80).map(([z]) => `<option value="${esc(z)}">`).join('');
+  document.querySelectorAll('#cfilters select, #cfilters input').forEach(el => el.addEventListener('input', render));
+}
+
+function renderConsultas() {
+  if (!S.consRows) { $('#tab-consultas').innerHTML = '<div class="note">Todavía no hay consultas sincronizadas. Aparecen después de la próxima actualización.</div>'; return; }
+  const per = +$('#cf-per').value, ag = $('#cf-ag').value, or = $('#cf-or').value, op = $('#cf-op').value, zq = norm($("#cf-zona").value.trim());
+  const meses = per ? lastMonths(per) : [...new Set(S.consRows.map(r => r.m))].sort();
+  const desde = meses[0];
+  const base = S.consRows.filter(r => (!ag || r.ag === ag) && (!or || r.origen === or) && (!op || r.op.has(op)) && (!zq || [...r.zona].some(z => norm(z).includes(zq))));
+  const list = base.filter(r => r.m >= desde);
+  const [mesAct, mesAnt] = [lastMonths(1)[0], lastMonths(2)[0]];
+  const nAct = base.filter(r => r.m === mesAct).length, nAnt = base.filter(r => r.m === mesAnt).length;
+  const u12 = new Set(lastMonths(12)), p12 = new Set(lastMonths(24).slice(0, 12));
+  const n12 = base.filter(r => u12.has(r.m)).length, np12 = base.filter(r => p12.has(r.m)).length;
+  const delta = (a, b) => b ? `${a >= b ? '▲' : '▼'} ${Math.abs(Math.round((a - b) * 100 / b))}% vs. año anterior` : '';
+  $('#ckpis').innerHTML =
+    kpi('Consultas este mes', nf.format(nAct), `${nf.format(nAnt)} el mes pasado`) +
+    kpi('Últimos 12 meses', nf.format(n12), delta(n12, np12)) +
+    kpi('En el período elegido', nf.format(list.length), per ? `últimos ${per} meses` : 'todo el historial') +
+    kpi('Pendientes de contactar', nf.format(list.filter(r => r.st === 'Pendiente contactar').length), 'estado actual en Tokko') +
+    kpi('Para reasignar', nf.format(list.filter(r => r.st === 'Para reasignacion').length), 'estado "Para reasignación" en Tokko') +
+    kpi('Cerradas', pct(list.filter(r => r.cerr).length, list.length), `${nf.format(list.filter(r => r.cerr).length)} consultas`) +
+    kpi('Propietarios', nf.format(list.filter(r => r.own).length), 'contactos que ofrecen su propiedad');
+
+  const PAL = [css('--navy'), '#5b82c8', '#b08d57', '#2f8a63', '#8e5bb5', '#c2453b', '#9aa0ad'];
+  const top = countBy(list, r => r.origen).slice(0, 6).map(x => x[0]);
+  barChart('cc-mes', meses.map(mesLabel), [...top, 'Otros'].map((o, i) => ({label: o, backgroundColor: PAL[i],
+    data: meses.map(m => list.filter(r => r.m === m && (o === 'Otros' ? !top.includes(r.origen) : r.origen === o)).length)})), {stacked: true});
+  const oc = countBy(list, r => r.origen).slice(0, 15);
+  barChart('cc-origen', oc.map(x => x[0]), [{label: 'Consultas', data: oc.map(x => x[1]), backgroundColor: css('--navy')}], {horizontal: true});
+  const agL = countBy(list, r => r.ag).slice(0, 12).map(x => x[0]);
+  barChart('cc-agente', agL, [
+    {label: 'Abiertas', data: agL.map(a => list.filter(r => r.ag === a && !r.cerr).length), backgroundColor: '#5b82c8'},
+    {label: 'Cerradas', data: agL.map(a => list.filter(r => r.ag === a && r.cerr).length), backgroundColor: css('--navy')}], {stacked: true, horizontal: true});
+  const st = countBy(list, r => r.st);
+  barChart('cc-estado', st.map(x => x[0]), [{label: 'Consultas', data: st.map(x => x[1]), backgroundColor: st.map(x => ABIERTOS.includes(x[0]) ? '#b08d57' : css('--navy'))}], {horizontal: true});
+  const zc = countBy(list.flatMap(r => [...r.zona]), z => z).slice(0, 15);
+  barChart('cc-zona', zc.map(x => x[0]), [{label: 'Consultas', data: zc.map(x => x[1]), backgroundColor: '#5b82c8'}], {horizontal: true});
+  const tc = countBy(list.flatMap(r => [...r.tipo]), t => t).slice(0, 12);
+  barChart('cc-tipo', tc.map(x => x[0]), [{label: 'Consultas', data: tc.map(x => x[1]), backgroundColor: '#b08d57'}], {horizontal: true});
 }
 
 /* ---------- emprendimientos ---------- */
