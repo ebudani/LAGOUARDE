@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0e1d47">
+<meta name="apple-mobile-web-app-title" content="LAGOUARDE">
 <title>LAGOUARDE</title>
 <link rel="icon" href="https://www.lagouarde.com.ar/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -74,16 +76,35 @@ tbody tr:hover{background:var(--soft)}
 .note{background:var(--soft);border-radius:10px;padding:12px 14px;color:var(--muted);font-size:13px;margin-bottom:16px}
 .thumb{width:56px;height:42px;object-fit:cover;border-radius:6px;background:var(--soft);display:block}
 a{color:var(--accent)}
-.hidden{display:none}
+.hidden{display:none !important}
 #err{max-width:700px;margin:60px auto;padding:20px}
 @media (max-width:640px){
   .brand img{height:44px}
   .brand span{display:none}
   header,main{padding-left:16px;padding-right:16px}
   .grid{grid-template-columns:1fr}
-  .filters{position:static}
-  .kpi .v{font-size:20px}
+  .ftoggle.ftoggle{display:flex}
+  .filters{display:none;grid-template-columns:1fr 1fr;gap:8px}
+  .filters.open{display:grid}
+  .filters label:first-child,.filters label:has(.row2){grid-column:1/-1}
+  .kpis{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi{padding:10px 12px}
+  .kpi .l{font-size:11px}
+  .kpi .v{font-size:19px}
+  .kpi .s{font-size:11px}
+  .chart{height:260px}
+  .card{padding:0 12px 12px}
+  .card h3{margin:0 -12px;padding:10px 12px}
+  .hm{display:none}
+  .filters select,.filters input{width:100%}
+  .filters .row2 input{width:50%}
+  #t-props td,#t-props th{padding:8px 6px}
+  #t-hist th:nth-child(4),#t-hist td:nth-child(4),#t-hist th:nth-child(5),#t-hist td:nth-child(5),
+  #t-hist th:nth-child(8),#t-hist td:nth-child(8),#t-hist th:nth-child(9),#t-hist td:nth-child(9){display:none}
+  #t-devs th:nth-child(3),#t-devs td:nth-child(3){display:none}
+  nav.tabs button{padding:10px 10px}
 }
+.ftoggle{display:none;width:100%;align-items:center;justify-content:space-between;font:inherit;font-weight:600;padding:12px 14px;margin-bottom:10px;border-radius:10px;border:1.5px solid var(--navy);background:#f4f6fb;color:var(--ink);cursor:pointer}
 </style>
 </head>
 <body>
@@ -102,6 +123,7 @@ a{color:var(--accent)}
     <button data-tab="emprendimientos">Emprendimientos</button>
   </nav>
 
+  <button class="ftoggle" id="ftoggle"><span>Filtros</span><span id="fsum">Todas las propiedades ▾</span></button>
   <section class="filters" id="filters">
     <label>Buscar<input id="f-q" placeholder="Dirección, código, título…"></label>
     <label>Operación<select id="f-op"></select></label>
@@ -228,17 +250,21 @@ function match(p, f, forEvent) {
   return true;
 }
 
+$('#ftoggle').onclick = () => { $('#filters').classList.toggle('open'); render(); };
 let tab = 'resumen';
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
   tab = b.dataset.tab;
   document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
   ['resumen', 'listado', 'historial', 'emprendimientos'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== tab));
   $('#filters').classList.toggle('hidden', tab === 'emprendimientos');
+  $('#ftoggle').classList.toggle('hidden', tab === 'emprendimientos');
   render();
 });
 
 function render() {
   const f = F(), list = S.props.filter(p => match(p, f));
+  const activos = [...document.querySelectorAll('#filters input, #filters select')].filter(el => el.value).length;
+  $('#fsum').textContent = (activos ? `${activos} activo${activos > 1 ? 's' : ''} · ${nf.format(list.length)} prop.` : 'Todas las propiedades') + ($('#filters').classList.contains('open') ? ' ▴' : ' ▾');
   $('#count').textContent = `Mostrando ${nf.format(list.length)} de ${nf.format(S.props.length)} propiedades`;
   if (tab === 'resumen') renderResumen(list);
   if (tab === 'listado') renderListado(list);
@@ -318,30 +344,30 @@ function barChart(id, labels, datasets, o = {}) {
 
 /* ---------- listado ---------- */
 const COLS = [
-  {k: 'foto', l: '', f: p => p.foto ? `<img class="thumb" loading="lazy" src="${esc(p.foto)}" alt="">` : '<div class="thumb"></div>', nosort: true},
-  {k: 'ref', l: 'Código', f: p => esc(p.ref)},
+  {k: 'foto', hm: 1, l: '', f: p => p.foto ? `<img class="thumb" loading="lazy" src="${esc(p.foto)}" alt="">` : '<div class="thumb"></div>', nosort: true},
+  {k: 'ref', hm: 1, l: 'Código', f: p => esc(p.ref)},
   {k: 'titulo', l: 'Propiedad', f: p => `<b>${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.titulo)}</a>` : esc(p.titulo)}</b><br><span class="badge">${esc(p.direccion)}</span>`},
-  {k: 'tipo', l: 'Tipo', f: p => esc(p.tipo)},
-  {k: 'zona', l: 'Zona', f: p => esc(p.zona)},
+  {k: 'tipo', hm: 1, l: 'Tipo', f: p => esc(p.tipo)},
+  {k: 'zona', hm: 1, l: 'Zona', f: p => esc(p.zona)},
   {k: 'op', l: 'Operación / precio', v: p => p.ops[0]?.precio ?? -1, f: p => p.ops.map(o => `<span class="pill ${o.op === 'Alquiler temporario' ? 'temp' : esc(o.op)}">${esc(o.op)}</span> ${money(o.precio, o.moneda)}`).join('<br>') || '—'},
   {k: 'estado', l: 'Estado', f: p => `<span class="st-${esc(p.estado.split(' ')[0])}">${esc(p.estado)}</span>`},
-  {k: 'ambientes', l: 'Amb.', n: true, f: p => p.ambientes ?? '—'},
-  {k: 'sup_total', l: 'm² tot.', n: true, f: p => p.sup_total ? nf.format(p.sup_total) : '—'},
-  {k: 'm2', l: 'Precio/m²', n: true, v: p => { const o = p.ops[0]; return o?.precio && p.sup_total ? o.precio / p.sup_total : -1; }, f: p => { const o = p.ops[0]; return o?.precio && p.sup_total ? money(o.precio / p.sup_total, o.moneda) : '—'; }},
-  {k: 'agente', l: 'Agente', f: p => esc(p.agente)},
-  {k: 'creada', l: 'Alta', f: p => p.creada || '—'},
+  {k: 'ambientes', hm: 1, l: 'Amb.', n: true, f: p => p.ambientes ?? '—'},
+  {k: 'sup_total', hm: 1, l: 'm² tot.', n: true, f: p => p.sup_total ? nf.format(p.sup_total) : '—'},
+  {k: 'm2', hm: 1, l: 'Precio/m²', n: true, v: p => { const o = p.ops[0]; return o?.precio && p.sup_total ? o.precio / p.sup_total : -1; }, f: p => { const o = p.ops[0]; return o?.precio && p.sup_total ? money(o.precio / p.sup_total, o.moneda) : '—'; }},
+  {k: 'agente', hm: 1, l: 'Agente', f: p => esc(p.agente)},
+  {k: 'creada', hm: 1, l: 'Alta', f: p => p.creada || '—'},
 ];
 const PAGE = 50;
 function renderListado(list) {
   const c = COLS.find(c => c.k === S.sort.k), val = c.v || (p => p[c.k] ?? '');
   list = [...list].sort((a, b) => { const x = val(a), y = val(b); return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'es')) * S.sort.d; });
-  $('#t-props thead').innerHTML = '<tr>' + COLS.map(c => `<th class="${c.n ? 'n' : ''}" data-k="${c.k}">${c.l}${S.sort.k === c.k ? (S.sort.d > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('') + '</tr>';
+  $('#t-props thead').innerHTML = '<tr>' + COLS.map(c => `<th class="${c.n ? 'n' : ''} ${c.hm ? 'hm' : ''}" data-k="${c.k}">${c.l}${S.sort.k === c.k ? (S.sort.d > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('') + '</tr>';
   document.querySelectorAll('#t-props th').forEach(th => th.onclick = () => {
     const c = COLS.find(c => c.k === th.dataset.k); if (c.nosort) return;
     S.sort = {k: c.k, d: S.sort.k === c.k ? -S.sort.d : 1}; render();
   });
   const pages = Math.max(1, Math.ceil(list.length / PAGE)); S.page = Math.min(S.page, pages - 1);
-  $('#t-props tbody').innerHTML = list.slice(S.page * PAGE, S.page * PAGE + PAGE).map(p => '<tr>' + COLS.map(c => `<td class="${c.n ? 'n' : ''}">${c.f(p)}</td>`).join('') + '</tr>').join('')
+  $('#t-props tbody').innerHTML = list.slice(S.page * PAGE, S.page * PAGE + PAGE).map(p => '<tr>' + COLS.map(c => `<td class="${c.n ? 'n' : ''} ${c.hm ? 'hm' : ''}">${c.f(p)}</td>`).join('') + '</tr>').join('')
     || `<tr><td colspan="${COLS.length}">Ninguna propiedad coincide con los filtros.</td></tr>`;
   $('#pager').innerHTML = `<button ${S.page ? '' : 'disabled'} id="pp">‹ Anterior</button> Página ${S.page + 1} de ${pages} <button ${S.page < pages - 1 ? '' : 'disabled'} id="pn">Siguiente ›</button>`;
   $('#pp').onclick = () => { S.page--; render(); }; $('#pn').onclick = () => { S.page++; render(); };
