@@ -1,0 +1,44 @@
+name: Sync Tokko
+
+on:
+  schedule:
+    # 09:00 UTC = 06:00 en Argentina (UTC-3). Cambiar acá si hace falta otro horario.
+    - cron: '0 9 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-tokko
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Traer datos de Tokko
+        env:
+          TOKKO_API_KEY: ${{ secrets.TOKKO_API_KEY }}
+        run: python scripts/fetch_tokko.py
+
+      - name: Guardar datos si cambiaron
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/*.json
+          if git diff --cached --quiet; then
+            echo "Sin cambios en los datos."
+          else
+            git commit -m "chore: sync datos de Tokko"
+            git push
+          fi

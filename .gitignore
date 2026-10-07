@@ -1,0 +1,4 @@
+.env
+data/*.tmp
+.claude/
+scripts/__pycache__/

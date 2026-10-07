@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LAGOUARDE</title>
+<link rel="icon" href="https://www.lagouarde.com.ar/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --navy:#0e1d47; --navy-ink:#ffffff;
+  --bg:#f3f4f7; --card:#fff; --ink:#0e1d47; --muted:#5f6577; --line:#dfe2ea; --soft:#eceef3;
+  --accent:#0e1d47; --gold:#b08d57; --venta:#0e1d47; --alq:#5b82c8; --temp:#b08d57; --otra:#9aa0ad;
+  --ok:#2f8a63; --warn:#b07a1f; --bad:#b23b3b;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#080f26; --card:#101b3d; --ink:#e8ebf3; --muted:#9aa3bb; --line:#24315a; --soft:#18244a;
+    --accent:#c9a46a; --venta:#9db4ea; --alq:#4f86d9; --temp:#c9a46a; --otra:#6c7590;
+    --ok:#5cc196; --warn:#d9a54a; --bad:#e07070;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#080f26; --card:#101b3d; --ink:#e8ebf3; --muted:#9aa3bb; --line:#24315a; --soft:#18244a;
+  --accent:#c9a46a; --venta:#9db4ea; --alq:#4f86d9; --temp:#c9a46a; --otra:#6c7590;
+  --ok:#5cc196; --warn:#d9a54a; --bad:#e07070;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Open Sans",system-ui,sans-serif}
+.topbar{background:var(--navy);color:var(--navy-ink)}
+header{padding:14px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;justify-content:space-between;max-width:1400px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:18px}
+.brand img{height:64px;width:auto;display:block;clip-path:inset(2.5% 1%)}
+.brand span{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#c8cee0;border-left:1px solid #3a4874;padding-left:18px}
+header .badge{color:#c8cee0}
+.badge{font-size:12px;color:var(--muted)}
+.demo{background:var(--gold);color:#fff;padding:3px 10px;border-radius:99px;font-weight:600;font-size:12px;margin-left:8px}
+main{max-width:1400px;margin:0 auto;padding:0 24px 40px}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:12px 0 16px;overflow-x:auto}
+nav.tabs button{background:none;border:0;padding:10px 14px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs button.on{color:var(--ink);border-color:var(--gold)}
+.filters{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+.filters label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.filters select,.filters input{font:inherit;font-size:13px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);text-transform:none;letter-spacing:0;font-weight:400;min-width:0}
+.filters .row2{display:flex;gap:6px}
+.filters .row2 input{width:50%}
+.filters button{align-self:end;font:inherit;font-weight:600;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--soft);color:var(--ink);cursor:pointer}
+.count{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:10px;padding:14px}
+.kpi .l{font-size:12px;color:var(--muted);font-weight:500}
+.kpi .v{font-size:24px;font-weight:700;color:var(--ink);margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--muted);margin-top:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.card h3{margin:0 0 2px;font-size:15px}
+.card p.sub{margin:0 0 12px;color:var(--muted);font-size:12px}
+.chart{position:relative;height:300px}
+.chart.tall{height:380px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0;background:var(--card)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:hover{background:var(--soft)}
+.scroll{overflow:auto;max-height:640px}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:600;background:var(--soft);white-space:nowrap}
+.pill.Venta{color:var(--venta)} .pill.Alquiler{color:var(--alq)} .pill.temp{color:var(--temp)}
+.st-Disponible{color:var(--ok)} .st-Reservada{color:var(--warn)} .st-No{color:var(--bad)}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px;font-size:12px;color:var(--muted)}
+.pager button{font:inherit;padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:var(--soft);color:var(--ink);cursor:pointer}
+.note{background:var(--soft);border-radius:10px;padding:12px 14px;color:var(--muted);font-size:13px;margin-bottom:16px}
+.thumb{width:56px;height:42px;object-fit:cover;border-radius:6px;background:var(--soft);display:block}
+a{color:var(--accent)}
+.hidden{display:none}
+#err{max-width:700px;margin:60px auto;padding:20px}
+@media (max-width:640px){
+  .brand img{height:44px}
+  .brand span{display:none}
+  header,main{padding-left:16px;padding-right:16px}
+  .grid{grid-template-columns:1fr}
+  .filters{position:static}
+  .kpi .v{font-size:20px}
+}
+</style>
+</head>
+<body>
+<div class="topbar"><header>
+  <div class="brand">
+    <img src="https://static.tokkobroker.com/tfw_images/644_Lagouarde%20Propiedades/200f685d-ffeb-4451-9331-ee5171c213d8.jpg" alt="Lagouarde Propiedades">
+    <span>Tablero de propiedades</span>
+  </div>
+  <div class="badge" id="sync">Cargando…</div>
+</header></div>
+<main id="app">
+  <nav class="tabs" id="tabs">
+    <button data-tab="resumen" class="on">Resumen</button>
+    <button data-tab="listado">Listado</button>
+    <button data-tab="historial">Historial</button>
+    <button data-tab="emprendimientos">Emprendimientos</button>
+  </nav>
+
+  <section class="filters" id="filters">
+    <label>Buscar<input id="f-q" placeholder="Dirección, código, título…"></label>
+    <label>Operación<select id="f-op"></select></label>
+    <label>Tipo<select id="f-tipo"></select></label>
+    <label>Estado<select id="f-estado"></select></label>
+    <label>Zona / barrio<input id="f-zona" list="l-zona" placeholder="Escribí: La Carlina, Palermo…"><datalist id="l-zona"></datalist></label>
+    <label>Agente<select id="f-agente"></select></label>
+    <label>Sucursal<select id="f-suc"></select></label>
+    <label>Ambientes<select id="f-amb"><option value="">Todos</option><option>1</option><option>2</option><option>3</option><option>4</option><option value="5">5 o más</option></select></label>
+    <label>Precio (moneda de la publicación)<span class="row2"><input id="f-pmin" type="number" placeholder="mín"><input id="f-pmax" type="number" placeholder="máx"></span></label>
+    <button id="f-reset">Limpiar filtros</button>
+    <div class="count" id="count"></div>
+  </section>
+
+  <div id="tab-resumen">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid">
+      <div class="card"><h3>Propiedades por tipo</h3><p class="sub">Separado por operación</p><div class="chart"><canvas id="c-tipo"></canvas></div></div>
+      <div class="card"><h3>Propiedades por zona</h3><p class="sub">Las 12 zonas con más propiedades</p><div class="chart"><canvas id="c-zona"></canvas></div></div>
+      <div class="card"><h3>Captaciones por mes</h3><p class="sub">Propiedades nuevas en Tokko según su fecha de alta (últimos 18 meses)</p><div class="chart"><canvas id="c-capt"></canvas></div></div>
+      <div class="card"><h3>Estado de la cartera</h3><p class="sub">Cantidad por estado y operación</p><div class="chart"><canvas id="c-estado"></canvas></div></div>
+      <div class="card"><h3>Precio por m² en venta (US$)</h3><p class="sub">Mediana por zona, mínimo 3 propiedades, sin campos ni chacras</p><div class="chart"><canvas id="c-m2"></canvas></div></div>
+      <div class="card"><h3>Cartera por agente</h3><p class="sub">Propiedades a cargo de cada productor</p><div class="chart"><canvas id="c-agente"></canvas></div></div>
+    </div>
+  </div>
+
+  <div id="tab-listado" class="hidden">
+    <div class="card">
+      <div class="scroll"><table id="t-props"><thead></thead><tbody></tbody></table></div>
+      <div class="pager" id="pager"></div>
+    </div>
+  </div>
+
+  <div id="tab-historial" class="hidden">
+    <div class="note" id="hist-note"></div>
+    <div class="kpis" id="hkpis"></div>
+    <div class="grid">
+      <div class="card"><h3>Cierres por mes</h3><p class="sub">Propiedades que pasaron a "No disponible" (vendidas o alquiladas)</p><div class="chart"><canvas id="c-cierres"></canvas></div></div>
+      <div class="card"><h3>Evolución de la cartera</h3><p class="sub">Foto de cada sincronización</p><div class="chart"><canvas id="c-stock"></canvas></div></div>
+    </div>
+    <div class="card">
+      <h3>Movimientos</h3><p class="sub">Altas, reservas, cierres, bajas y cambios de precio detectados. Respetan los filtros de arriba.</p>
+      <div class="scroll"><table id="t-hist"><thead></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+
+  <div id="tab-emprendimientos" class="hidden">
+    <div class="card">
+      <div class="scroll"><table id="t-devs"><thead></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+</main>
+<div id="err" class="hidden"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const S = {props: [], devs: [], hist: {eventos: [], fotos: []}, meta: {}, page: 0, sort: {k: 'creada', d: -1}};
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const RURAL = new Set(['Campo', 'Chacra', 'Quinta']);
+const OPS = ['Venta', 'Alquiler', 'Alquiler temporario'];
+const opColor = op => op === 'Venta' ? css('--venta') : op === 'Alquiler' ? css('--alq') : op === 'Alquiler temporario' ? css('--temp') : css('--otra');
+const nf = new Intl.NumberFormat('es-AR');
+const money = (v, cur) => v == null ? '—' : (cur === 'USD' ? 'US$ ' : '$ ') + nf.format(Math.round(v));
+const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const norm = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const opsOf = p => p.ops.length ? p.ops.map(o => o.op) : ['Otra'];
+const mes = d => d ? d.slice(0, 7) : null;
+const mesLabel = m => { const [y, mm] = m.split('-'); return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+mm - 1] + ' ' + y.slice(2); };
+
+async function load() {
+  const get = async (f, d) => { try { const r = await fetch('data/' + f, {cache: 'no-store'}); return r.ok ? r.json() : d; } catch { return d; } };
+  [S.props, S.devs, S.hist, S.meta] = await Promise.all([
+    get('propiedades.json', null), get('emprendimientos.json', []), get('historial.json', {}), get('meta.json', {})]);
+  if (!S.props) {
+    $('#app').classList.add('hidden'); $('#err').classList.remove('hidden');
+    $('#err').innerHTML = '<h2>Todavía no hay datos</h2><p>Corré <code>python scripts/fetch_tokko.py</code> (o con <code>--demo</code> para datos de prueba) y recargá la página.</p>';
+    $('#sync').textContent = ''; return;
+  }
+  S.hist.eventos ||= []; S.hist.fotos ||= [];
+  const when = S.meta.actualizado ? new Date(S.meta.actualizado).toLocaleString('es-AR', {dateStyle: 'medium', timeStyle: 'short'}) : '—';
+  $('#sync').innerHTML = 'Sincronizado: ' + when + (S.meta.modo === 'demo' ? '<span class="demo">DATOS DE PRUEBA</span>' : '');
+  buildFilters(); render();
+}
+
+function opts(sel, values, all = 'Todos') {
+  const el = $(sel), cur = el.value;
+  el.innerHTML = `<option value="">${all}</option>` + values.map(v => `<option>${esc(v)}</option>`).join('');
+  el.value = values.includes(cur) ? cur : '';
+}
+const uniq = (f) => [...new Set(S.props.flatMap(f).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+
+function buildFilters() {
+  opts('#f-op', uniq(p => opsOf(p)), 'Todas');
+  opts('#f-tipo', uniq(p => [p.tipo]));
+  opts('#f-estado', uniq(p => [p.estado]));
+  $('#l-zona').innerHTML = uniq(p => [p.zona]).map(v => `<option value="${esc(v)}">`).join('');
+  opts('#f-agente', uniq(p => [p.agente]));
+  opts('#f-suc', uniq(p => [p.sucursal]), 'Todas');
+  $('#f-suc').parentElement.classList.toggle('hidden', uniq(p => [p.sucursal]).length < 2);
+  document.querySelectorAll('#filters input, #filters select').forEach(el => el.addEventListener('input', () => { S.page = 0; render(); }));
+  $('#f-reset').onclick = () => { document.querySelectorAll('#filters input, #filters select').forEach(el => el.value = ''); S.page = 0; render(); };
+}
+
+function F() {
+  return {q: norm($('#f-q').value.trim()), op: $('#f-op').value, tipo: $('#f-tipo').value, estado: $('#f-estado').value,
+    zona: norm($('#f-zona').value.trim()), agente: $('#f-agente').value, suc: $('#f-suc').value, amb: $('#f-amb').value,
+    pmin: parseFloat($('#f-pmin').value), pmax: parseFloat($('#f-pmax').value)};
+}
+function match(p, f, forEvent) {
+  if (f.tipo && p.tipo !== f.tipo) return false;
+  if (f.zona && !norm(p.zona + ' ' + (p.ubicacion || '') + ' ' + (p.ciudad || '')).includes(f.zona)) return false;
+  if (f.agente && p.agente !== f.agente) return false;
+  if (forEvent) return (!f.op || p.op === f.op) && (!f.q || norm(p.titulo + ' ' + p.ref).includes(f.q));
+  if (f.estado && p.estado !== f.estado) return false;
+  if (f.suc && p.sucursal !== f.suc) return false;
+  if (f.op && !opsOf(p).includes(f.op)) return false;
+  if (f.amb && (f.amb === '5' ? !(p.ambientes >= 5) : p.ambientes !== +f.amb)) return false;
+  if (f.q && !norm([p.titulo, p.direccion, p.ref, p.zona, p.ubicacion, ...(p.tags || [])].join(' ')).includes(f.q)) return false;
+  if (!isNaN(f.pmin) || !isNaN(f.pmax)) {
+    const ops = f.op ? p.ops.filter(o => o.op === f.op) : p.ops;
+    if (!ops.some(o => o.precio != null && (isNaN(f.pmin) || o.precio >= f.pmin) && (isNaN(f.pmax) || o.precio <= f.pmax))) return false;
+  }
+  return true;
+}
+
+let tab = 'resumen';
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  ['resumen', 'listado', 'historial', 'emprendimientos'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== tab));
+  $('#filters').classList.toggle('hidden', tab === 'emprendimientos');
+  render();
+});
+
+function render() {
+  const f = F(), list = S.props.filter(p => match(p, f));
+  $('#count').textContent = `Mostrando ${nf.format(list.length)} de ${nf.format(S.props.length)} propiedades`;
+  if (tab === 'resumen') renderResumen(list);
+  if (tab === 'listado') renderListado(list);
+  if (tab === 'historial') renderHistorial(f);
+  if (tab === 'emprendimientos') renderDevs();
+}
+
+/* ---------- resumen ---------- */
+function kpi(l, v, s = '') { return `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`; }
+function renderResumen(list) {
+  const has = op => list.filter(p => opsOf(p).includes(op));
+  const venta = has('Venta'), alq = has('Alquiler'), temp = has('Alquiler temporario');
+  const disp = list.filter(p => p.estado === 'Disponible').length, res = list.filter(p => p.estado === 'Reservada').length;
+  const priceOf = (ps, op, cur) => ps.flatMap(p => p.ops.filter(o => o.op === op && o.moneda === cur && o.precio).map(o => o.precio));
+  const vUSD = median(priceOf(venta, 'Venta', 'USD'));
+  const aCur = countBy(alq.flatMap(p => p.ops.filter(o => o.op === 'Alquiler' && o.moneda)), o => o.moneda)[0]?.[0] || 'ARS';
+  const aMed = median(priceOf(alq, 'Alquiler', aCur));
+  const m2 = median(venta.filter(p => !RURAL.has(p.tipo)).flatMap(p => p.ops.filter(o => o.op === 'Venta' && o.moneda === 'USD' && o.precio && p.sup_total).map(o => o.precio / p.sup_total)));
+  const lotes = list.filter(p => /terreno|lote/i.test(p.tipo)), rural = list.filter(p => RURAL.has(p.tipo));
+  const casas = list.filter(p => p.tipo === 'Casa');
+  $('#kpis').innerHTML =
+    kpi('Propiedades', nf.format(list.length), `${nf.format(disp)} disponibles · ${nf.format(res)} reservadas`) +
+    kpi('En venta', nf.format(venta.length), `${pct(venta.length, list.length)} de la cartera`) +
+    kpi('En alquiler', nf.format(alq.length), temp.length ? `+ ${nf.format(temp.length)} temporarios` : `${pct(alq.length, list.length)} de la cartera`) +
+    kpi('Casas', nf.format(casas.length), `${nf.format(casas.filter(p => opsOf(p).includes('Venta')).length)} venta · ${nf.format(casas.filter(p => opsOf(p).some(o => o.startsWith('Alquiler'))).length)} alquiler`) +
+    kpi('Precio típico de venta', money(vUSD, 'USD'), 'mediana, publicaciones en US$') +
+    (lotes.length ? kpi('Lotes / terrenos', nf.format(lotes.length), `${nf.format(lotes.filter(p => opsOf(p).includes('Venta')).length)} en venta`) : '') +
+    (rural.length ? kpi('Campos y chacras', nf.format(rural.length), `${nf.format(list.filter(p => p.tipo === 'Campo').length)} campos · ${nf.format(list.filter(p => p.tipo === 'Chacra').length)} chacras`) : '') +
+    (alq.length ? kpi('Alquiler típico', money(aMed, aCur), `mediana mensual, en ${aCur === 'USD' ? 'US$' : '$'}`) : '') +
+    kpi('US$ por m² (venta)', money(m2, 'USD'), 'mediana sobre sup. total, sin campos ni chacras') +
+    kpi('Captadas este mes', nf.format(list.filter(p => mes(p.creada) === lastMonths(1)[0]).length), `${nf.format(list.filter(p => mes(p.creada) === lastMonths(2)[0]).length)} el mes pasado`);
+
+  // por tipo, apilado por operación
+  const tipos = countBy(list, p => p.tipo).slice(0, 12).map(x => x[0]);
+  barChart('c-tipo', tipos, OPS.map(op => ({label: op, data: tipos.map(t => list.filter(p => p.tipo === t && opsOf(p).includes(op)).length), backgroundColor: opColor(op)})), {stacked: true, horizontal: true});
+  const zonas = countBy(list, p => p.zona).slice(0, 12).map(x => x[0]);
+  barChart('c-zona', zonas, OPS.map(op => ({label: op, data: zonas.map(z => list.filter(p => p.zona === z && opsOf(p).includes(op)).length), backgroundColor: opColor(op)})), {stacked: true, horizontal: true});
+
+  // captaciones por mes
+  const meses = lastMonths(18);
+  barChart('c-capt', meses.map(mesLabel), OPS.map(op => ({label: op, data: meses.map(m => list.filter(p => mes(p.creada) === m && opsOf(p).includes(op)).length), backgroundColor: opColor(op)})), {stacked: true});
+
+  const estados = countBy(list, p => p.estado).map(x => x[0]);
+  barChart('c-estado', estados, OPS.map(op => ({label: op, data: estados.map(e => list.filter(p => p.estado === e && opsOf(p).includes(op)).length), backgroundColor: opColor(op)})), {stacked: true});
+
+  const m2z = Object.entries(groupBy(venta.filter(p => !RURAL.has(p.tipo)).flatMap(p => p.ops.filter(o => o.op === 'Venta' && o.moneda === 'USD' && o.precio && p.sup_total).map(o => [p.zona, o.precio / p.sup_total])), x => x[0]))
+    .filter(([, v]) => v.length >= 3).map(([z, v]) => [z, Math.round(median(v.map(x => x[1])))]).sort((a, b) => b[1] - a[1]).slice(0, 15);
+  barChart('c-m2', m2z.map(x => x[0]), [{label: 'US$/m²', data: m2z.map(x => x[1]), backgroundColor: css('--venta')}], {horizontal: true, money: 'USD'});
+
+  const ag = countBy(list, p => p.agente).slice(0, 15).map(x => x[0]);
+  barChart('c-agente', ag, OPS.map(op => ({label: op, data: ag.map(a => list.filter(p => p.agente === a && opsOf(p).includes(op)).length), backgroundColor: opColor(op)})), {stacked: true, horizontal: true});
+}
+const pct = (a, b) => b ? Math.round(a * 100 / b) + '%' : '—';
+function countBy(list, f) { const m = {}; list.forEach(x => { const k = f(x); m[k] = (m[k] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]); }
+function groupBy(list, f) { const m = {}; list.forEach(x => (m[f(x)] ||= []).push(x)); return m; }
+function lastMonths(n) { const out = [], d = new Date(); d.setDate(1); for (let i = n - 1; i >= 0; i--) { const x = new Date(d.getFullYear(), d.getMonth() - i, 1); out.push(x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0')); } return out; }
+
+const charts = {};
+function barChart(id, labels, datasets, o = {}) {
+  charts[id]?.destroy();
+  datasets = datasets.filter(d => d.data.some(v => v));
+  const grid = css('--line'), tick = css('--muted');
+  const valAxis = {stacked: !!o.stacked, beginAtZero: true, grid: {color: grid}, ticks: {color: tick, precision: 0, callback: o.money ? v => nf.format(v) : undefined}};
+  const catAxis = {stacked: !!o.stacked, grid: {display: false}, ticks: {color: tick, autoSkip: !o.horizontal}};
+  charts[id] = new Chart(document.getElementById(id), {
+    type: o.line ? 'line' : 'bar',
+    data: {labels, datasets: datasets.map(d => ({borderRadius: o.line ? 0 : 3, maxBarThickness: 28, borderColor: d.backgroundColor, ...d}))},
+    options: {
+      indexAxis: o.horizontal ? 'y' : 'x', maintainAspectRatio: false, animation: false,
+      plugins: {legend: {display: datasets.length > 1, labels: {color: tick, boxWidth: 12, boxHeight: 12}},
+        tooltip: {callbacks: {label: c => `${c.dataset.label}: ${o.money ? money(c.raw, o.money) : nf.format(c.raw)}`}}},
+      scales: o.horizontal ? {x: valAxis, y: catAxis} : {x: catAxis, y: valAxis},
+      elements: {point: {radius: 2}}
+    }
+  });
+}
+
+/* ---------- listado ---------- */
+const COLS = [
+  {k: 'foto', l: '', f: p => p.foto ? `<img class="thumb" loading="lazy" src="${esc(p.foto)}" alt="">` : '<div class="thumb"></div>', nosort: true},
+  {k: 'ref', l: 'Código', f: p => esc(p.ref)},
+  {k: 'titulo', l: 'Propiedad', f: p => `<b>${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.titulo)}</a>` : esc(p.titulo)}</b><br><span class="badge">${esc(p.direccion)}</span>`},
+  {k: 'tipo', l: 'Tipo', f: p => esc(p.tipo)},
+  {k: 'zona', l: 'Zona', f: p => esc(p.zona)},
+  {k: 'op', l: 'Operación / precio', v: p => p.ops[0]?.precio ?? -1, f: p => p.ops.map(o => `<span class="pill ${o.op === 'Alquiler temporario' ? 'temp' : esc(o.op)}">${esc(o.op)}</span> ${money(o.precio, o.moneda)}`).join('<br>') || '—'},
+  {k: 'estado', l: 'Estado', f: p => `<span class="st-${esc(p.estado.split(' ')[0])}">${esc(p.estado)}</span>`},
+  {k: 'ambientes', l: 'Amb.', n: true, f: p => p.ambientes ?? '—'},
+  {k: 'sup_total', l: 'm² tot.', n: true, f: p => p.sup_total ? nf.format(p.sup_total) : '—'},
+  {k: 'm2', l: 'Precio/m²', n: true, v: p => { const o = p.ops[0]; return o?.precio && p.sup_total ? o.precio / p.sup_total : -1; }, f: p => { const o = p.ops[0]; return o?.precio && p.sup_total ? money(o.precio / p.sup_total, o.moneda) : '—'; }},
+  {k: 'agente', l: 'Agente', f: p => esc(p.agente)},
+  {k: 'creada', l: 'Alta', f: p => p.creada || '—'},
+];
+const PAGE = 50;
+function renderListado(list) {
+  const c = COLS.find(c => c.k === S.sort.k), val = c.v || (p => p[c.k] ?? '');
+  list = [...list].sort((a, b) => { const x = val(a), y = val(b); return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'es')) * S.sort.d; });
+  $('#t-props thead').innerHTML = '<tr>' + COLS.map(c => `<th class="${c.n ? 'n' : ''}" data-k="${c.k}">${c.l}${S.sort.k === c.k ? (S.sort.d > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('') + '</tr>';
+  document.querySelectorAll('#t-props th').forEach(th => th.onclick = () => {
+    const c = COLS.find(c => c.k === th.dataset.k); if (c.nosort) return;
+    S.sort = {k: c.k, d: S.sort.k === c.k ? -S.sort.d : 1}; render();
+  });
+  const pages = Math.max(1, Math.ceil(list.length / PAGE)); S.page = Math.min(S.page, pages - 1);
+  $('#t-props tbody').innerHTML = list.slice(S.page * PAGE, S.page * PAGE + PAGE).map(p => '<tr>' + COLS.map(c => `<td class="${c.n ? 'n' : ''}">${c.f(p)}</td>`).join('') + '</tr>').join('')
+    || `<tr><td colspan="${COLS.length}">Ninguna propiedad coincide con los filtros.</td></tr>`;
+  $('#pager').innerHTML = `<button ${S.page ? '' : 'disabled'} id="pp">‹ Anterior</button> Página ${S.page + 1} de ${pages} <button ${S.page < pages - 1 ? '' : 'disabled'} id="pn">Siguiente ›</button>`;
+  $('#pp').onclick = () => { S.page--; render(); }; $('#pn').onclick = () => { S.page++; render(); };
+}
+
+/* ---------- historial ---------- */
+function renderHistorial(f) {
+  const ev = S.hist.eventos.filter(e => match(e, f, true));
+  const desde = S.meta.historial_desde;
+  $('#hist-note').innerHTML = S.meta.modo === 'demo'
+    ? 'Estos movimientos son <b>de prueba</b>. Con los datos reales, el historial se arma comparando cada sincronización con la anterior.'
+    : `Tokko solo informa el estado actual de cada propiedad, así que el historial se arma comparando cada sincronización con la anterior${desde ? ` (registrando desde el <b>${desde}</b>)` : ''}. Cuanto más tiempo corra la sincronización diaria, más completo queda. Las captaciones por mes (pestaña Resumen) sí usan la fecha de alta real de Tokko.`;
+  const ult12 = lastMonths(12), set12 = new Set(ult12);
+  const cierres = ev.filter(e => e.evento === 'Cerrada' && set12.has(mes(e.fecha)));
+  const cv = cierres.filter(e => e.op === 'Venta'), ca = cierres.filter(e => e.op?.startsWith('Alquiler'));
+  const montoV = cv.filter(e => e.moneda === 'USD').reduce((s, e) => s + (e.precio || 0), 0);
+  $('#hkpis').innerHTML =
+    kpi('Ventas cerradas', nf.format(cv.length), 'últimos 12 meses') +
+    kpi('Monto publicado vendido', money(montoV, 'USD'), 'suma de precios de publicación') +
+    kpi('Alquileres cerrados', nf.format(ca.length), 'últimos 12 meses') +
+    kpi('Reservas', nf.format(ev.filter(e => e.evento === 'Reservada' && set12.has(mes(e.fecha))).length), 'últimos 12 meses') +
+    kpi('Bajas de precio', nf.format(ev.filter(e => e.evento === 'Cambio de precio' && e.despues < e.antes && set12.has(mes(e.fecha))).length), 'últimos 12 meses');
+  barChart('c-cierres', ult12.map(mesLabel), OPS.map(op => ({label: op, data: ult12.map(m => cierres.filter(e => e.op === op && mes(e.fecha) === m).length), backgroundColor: opColor(op)})), {stacked: true});
+  const fo = S.hist.fotos;
+  barChart('c-stock', fo.map(x => x.fecha.slice(5).split('-').reverse().join('/')), [
+    {label: 'Total', data: fo.map(x => x.total), backgroundColor: css('--accent')},
+    {label: 'En venta', data: fo.map(x => x.venta), backgroundColor: css('--venta')},
+    {label: 'En alquiler', data: fo.map(x => x.alquiler), backgroundColor: css('--alq')},
+    {label: 'Reservadas', data: fo.map(x => x.reservadas), backgroundColor: css('--temp')}], {line: true});
+  $('#t-hist thead').innerHTML = '<tr><th>Fecha</th><th>Movimiento</th><th>Propiedad</th><th>Tipo</th><th>Zona</th><th>Operación</th><th class="n">Precio</th><th>Detalle</th><th>Agente</th></tr>';
+  $('#t-hist tbody').innerHTML = [...ev].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 500).map(e => `<tr><td>${e.fecha}</td><td><b>${esc(e.evento)}</b></td><td>${esc(e.titulo)}<br><span class="badge">${esc(e.ref)}</span></td><td>${esc(e.tipo_prop)}</td><td>${esc(e.zona)}</td><td>${esc(e.op)}</td><td class="n">${money(e.precio, e.moneda)}</td><td>${e.evento === 'Cambio de precio' ? money(e.antes, e.moneda) + ' → ' + money(e.despues, e.moneda) : esc([e.antes, e.despues].filter(Boolean).join(' → '))}</td><td>${esc(e.agente)}</td></tr>`).join('')
+    || '<tr><td colspan="9">Todavía no hay movimientos registrados. Aparecen a partir de la segunda sincronización.</td></tr>';
+}
+
+/* ---------- emprendimientos ---------- */
+function renderDevs() {
+  const unidades = groupBy(S.props.filter(p => p.emprendimiento), p => p.emprendimiento);
+  $('#t-devs thead').innerHTML = '<tr><th>Emprendimiento</th><th>Zona</th><th>Dirección</th><th>Estado de obra</th><th>Entrega</th><th class="n">Unidades</th><th class="n">Disponibles</th><th class="n">Reservadas</th></tr>';
+  $('#t-devs tbody').innerHTML = S.devs.map(d => { const u = unidades[d.nombre] || []; return `<tr><td><b>${esc(d.nombre)}</b></td><td>${esc(d.zona)}</td><td>${esc(d.direccion)}</td><td>${esc(d.estado)}</td><td>${esc(d.entrega || '—')}</td><td class="n">${u.length}</td><td class="n">${u.filter(p => p.estado === 'Disponible').length}</td><td class="n">${u.filter(p => p.estado === 'Reservada').length}</td></tr>`; }).join('')
+    || '<tr><td colspan="8">No hay emprendimientos cargados en Tokko.</td></tr>';
+}
+
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+load();
+</script>
+</body>
+</html>
