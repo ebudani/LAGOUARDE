@@ -6,7 +6,7 @@ Uso:
   python scripts/fetch_meta.py --demo   # datos ficticios para ver la pestaña
 
 Variables (en LAGOUARDE/.env o como secrets de GitHub):
-  META_TOKEN          token de acceso de la PÁGINA de Facebook (de larga duración)
+  META_TOKEN          token de un usuario del sistema de Meta Business (o token de la página)
   META_PAGE_ID        ID de la página de Facebook de Lagouarde
   META_AD_ACCOUNT_ID  (opcional) ID de la cuenta publicitaria, con o sin "act_"
 
@@ -264,6 +264,11 @@ def main():
         return
     out = {"modo": "real", "actualizado": datetime.datetime.now(TZ).replace(microsecond=0).isoformat(), "errores": []}
     desde = (datetime.datetime.utcnow() - datetime.timedelta(days=DIAS)).strftime("%Y-%m-%dT%H:%M:%S")
+    user_token = token  # token de usuario del sistema: sirve para anuncios; para la página se pide su propio token
+    try:
+        token = graph(page_id, user_token, {"fields": "access_token"}).get("access_token") or user_token
+    except RuntimeError:
+        pass  # ya es un token de página
     try:
         ig = graph(page_id, token, {"fields": "instagram_business_account"}).get("instagram_business_account", {})
         page_ids = {page_id, ig.get("id")} - {None}
@@ -283,7 +288,7 @@ def main():
     if cuenta:
         try:
             print("Meta: leyendo anuncios…")
-            out["anuncios"] = leer_anuncios(token, cuenta)
+            out["anuncios"] = leer_anuncios(user_token, cuenta)
         except RuntimeError as e:
             out["errores"].append(f"anuncios: {e}")
             print(f"  {e}")
