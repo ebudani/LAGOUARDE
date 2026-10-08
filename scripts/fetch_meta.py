@@ -128,16 +128,25 @@ def paged(path, token, params, max_items=100000):
 
 
 def leer_conversaciones(token, page_id, plataforma, desde):
+    """Messenger: conversaciones con sus mensajes en un solo pedido.
+    Instagram: Meta corta por timeout si se piden juntos, así que primero la lista y después
+    los mensajes de cada conversación por separado."""
     convs = []
-    # Instagram corta por timeout con páginas grandes: se piden de a pocas conversaciones
-    chico = plataforma == "instagram"
-    params = {"platform": plataforma, "limit": 5 if chico else 25,
-              "fields": f"updated_time,messages.limit({30 if chico else 100}){{message,from,created_time}}"}
+    ig = plataforma == "instagram"
+    campos_msg = "message,from,created_time"
+    params = {"platform": plataforma, "limit": 25 if ig else 25,
+              "fields": "updated_time" if ig else f"updated_time,messages.limit(100){{{campos_msg}}}"}
     page = graph(f"{page_id}/conversations", token, params)
     while True:
         for c in page.get("data", []):
             if c.get("updated_time", "") < desde:
                 return convs
+            if ig:
+                try:
+                    c["messages"] = graph(f"{c['id']}/messages", token, {"fields": campos_msg, "limit": 50})
+                except RuntimeError as e:
+                    print(f"  (conversación salteada: {e})")
+                    continue
             convs.append(c)
         nxt = (page.get("paging") or {}).get("next")
         if not nxt:
