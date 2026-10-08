@@ -108,7 +108,7 @@ def graph(path, token, params=None, full_url=None):
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", "replace")
             msg = (json.loads(body).get("error") or {}).get("message", body[:200]) if body.startswith("{") else body[:200]
-            if e.code in (400, 401, 403):
+            if e.code in (400, 401, 403) and "timeout" not in msg.lower():
                 raise RuntimeError(f"Meta rechazó el pedido ({e.code}): {msg}")
             err = msg
         except (urllib.error.URLError, TimeoutError) as e:
@@ -129,8 +129,10 @@ def paged(path, token, params, max_items=100000):
 
 def leer_conversaciones(token, page_id, plataforma, desde):
     convs = []
-    params = {"platform": plataforma, "limit": 25,
-              "fields": "updated_time,messages.limit(100){message,from,created_time}"}
+    # Instagram corta por timeout con páginas grandes: se piden de a pocas conversaciones
+    chico = plataforma == "instagram"
+    params = {"platform": plataforma, "limit": 5 if chico else 25,
+              "fields": f"updated_time,messages.limit({30 if chico else 100}){{message,from,created_time}}"}
     page = graph(f"{page_id}/conversations", token, params)
     while True:
         for c in page.get("data", []):
