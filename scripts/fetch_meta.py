@@ -108,6 +108,8 @@ def graph(path, token, params=None, full_url=None):
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", "replace")
             msg = (json.loads(body).get("error") or {}).get("message", body[:200]) if body.startswith("{") else body[:200]
+            if "reduce the amount" in msg.lower():
+                raise RuntimeError(msg)  # quien llama achica el pedido
             if e.code in (400, 401, 403) and "timeout" not in msg.lower():
                 raise RuntimeError(f"Meta rechazó el pedido ({e.code}): {msg}")
             err = msg
@@ -134,16 +136,21 @@ def leer_conversaciones(token, page_id, plataforma, desde):
     convs = []
     ig = plataforma == "instagram"
     campos_msg = "message,from,created_time"
-    params = {"platform": plataforma, "limit": 25 if ig else 25,
-              "fields": "updated_time" if ig else f"updated_time,messages.limit(100){{{campos_msg}}}"}
-    page = graph(f"{page_id}/conversations", token, params)
+    fields = "updated_time" if ig else f"updated_time,messages.limit(100){{{campos_msg}}}"
+    for limite in (25, 10, 5, 2, 1):  # Meta a veces pide "reduce the amount of data": se achica la página
+        try:
+            page = graph(f"{page_id}/conversations", token, {"platform": plataforma, "limit": limite, "fields": fields})
+            break
+        except RuntimeError as e:
+            if limite == 1 or not re.search(r"reduce the amount|timeout", str(e), re.I):
+                raise
     while True:
         for c in page.get("data", []):
             if c.get("updated_time", "") < desde:
                 return convs
             if ig:
                 try:
-                    c["messages"] = graph(f"{c['id']}/messages", token, {"fields": campos_msg, "limit": 50})
+                    c["messages"] = graph(f"{c['id']}/messages", token, {"fields": campos_msg, "limit": 20})
                 except RuntimeError as e:
                     print(f"  (conversación salteada: {e})")
                     continue
