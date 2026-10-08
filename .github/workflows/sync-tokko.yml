@@ -5,6 +5,10 @@ on:
     # 09:00 UTC = 06:00 en Argentina (UTC-3). Cambiar acá si hace falta otro horario.
     - cron: '0 9 * * *'
   workflow_dispatch: {}
+  push:
+    # también corre cuando se cambian los scripts o este workflow
+    branches: [main]
+    paths: ['scripts/**', '.github/workflows/sync-tokko.yml']
 
 permissions:
   contents: write
